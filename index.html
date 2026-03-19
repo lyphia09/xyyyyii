@@ -2,10 +2,18 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>BBNK</title>
+<title>ババ抜き（ラウンド制）</title>
 <style>
 body{font-family:sans-serif;text-align:center;background:#888;color:white}
-.hand{margin:20px;position:relative;height:100px}
+.hand{
+  margin:20px;
+  display:flex;
+  justify-content:center;
+}
+.inner{
+  position:relative;
+  height:100px;
+}
 .card{position:absolute;width:60px;height:80px;border-radius:10px;background:white;color:black;font-weight:bold;display:flex;align-items:center;justify-content:center;box-shadow:2px 2px 5px rgba(0,0,0,0.5);transform-origin:bottom center;transition:transform .3s}
 .card:hover{transform:translateY(-10px) scale(1.1)}
 .back{background:linear-gradient(45deg,#444,#222);color:#222}
@@ -102,18 +110,40 @@ function draw(){
  const cardWidth = 60;
  const gap = 20;
 
- // 中央配置計算
- const cpuWidth = cpuDiv.offsetWidth || 600;
- const playerWidth = playerDiv.offsetWidth || 600;
+ // 内側ラッパー作成
+ const cpuInner=document.createElement('div');
+ cpuInner.className='inner';
+ const playerInner=document.createElement('div');
+ playerInner.className='inner';
 
- const cpuStart = (cpuWidth - ((cpu.length-1)*gap + cardWidth)) / 2;
- const playerStart = (playerWidth - ((player.length-1)*gap + cardWidth)) / 2;
+ const cpuTotal = (cpu.length-1)*gap + cardWidth;
+ const playerTotal = (player.length-1)*gap + cardWidth;
+
+ cpuInner.style.width = cpuTotal + 'px';
+ playerInner.style.width = playerTotal + 'px';
 
  cpu.forEach((_,i)=>{
   const d=document.createElement('div');
   d.className='card back';
-  d.style.left=(cpuStart + i*gap)+'px';
+  d.style.left=(i*gap)+'px';
   d.style.transform=`rotate(${i*5-10}deg)`;
+  if(turn==='player') d.onclick=()=>playerTurn(i,d);
+  cpuInner.appendChild(d);
+ });
+
+ player.forEach((c,i)=>{
+  const d=document.createElement('div');
+  d.className='card';
+  if(c.mark==='♥'||c.mark==='♦') d.classList.add('red');
+  d.textContent=fmt(c);
+  d.style.left=(i*gap)+'px';
+  d.style.transform=`rotate(${i*5-10}deg)`;
+  playerInner.appendChild(d);
+ });
+
+ cpuDiv.appendChild(cpuInner);
+ playerDiv.appendChild(playerInner);
+}deg)`;
   if(turn==='player') d.onclick=()=>playerTurn(i,d);
   cpuDiv.appendChild(d);
  });
