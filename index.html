@@ -8,14 +8,23 @@ body{font-family:sans-serif;text-align:center;background:#0b5;color:white}
 .hand{margin:10px}
 .card{display:inline-block;padding:10px 15px;margin:5px;border-radius:8px;background:white;color:black;cursor:pointer}
 .back{background:#333;color:#333}
+#jokerEffect{
+ position:fixed;
+ top:50%;left:50%;
+ transform:translate(-50%,-50%);
+ font-size:80px;
+ display:none;
+}
 </style>
 </head>
 <body>
 <h1>ババ抜き</h1>
 <p id="status">あなたのターン：上のカードを選んで引く</p>
 
+<div id="jokerEffect">👿</div>
+
 <div>
-<h3>CPUの手札（ここをクリック）</h3>
+<h3>CPUの手札（クリック）</h3>
 <div id="cpu" class="hand"></div>
 </div>
 
@@ -60,6 +69,12 @@ function removePairs(hand){
  return hand;
 }
 
+function showJoker(){
+ const el = document.getElementById('jokerEffect');
+ el.style.display='block';
+ setTimeout(()=>{ el.style.display='none'; },1000);
+}
+
 function draw(){
  const cpuDiv = document.getElementById('cpu');
  const playerDiv = document.getElementById('player');
@@ -69,12 +84,7 @@ function draw(){
   let div=document.createElement('div');
   div.className='card back';
   div.textContent='?';
-  if(turn==='player'){
-    div.onclick=()=>playerTurn(i);
-    div.style.cursor='pointer';
-  } else {
-    div.style.cursor='default';
-  }
+  if(turn==='player') div.onclick=()=>playerTurn(i);
   cpuDiv.appendChild(div);
  });
 
@@ -88,14 +98,12 @@ function draw(){
 
 function playerTurn(index){
  if(turn!=='player') return;
- if(cpu.length===0) return;
-
  let card = cpu.splice(index,1)[0];
  player.push(card);
+ if(card==='J') showJoker();
  player = removePairs(player);
-
- document.getElementById('status').textContent = 'CPUのターン';
  turn='cpu';
+ document.getElementById('status').textContent='CPUのターン';
  draw();
  checkWin();
  setTimeout(cpuTurn,800);
@@ -106,10 +114,10 @@ function cpuTurn(){
  let i=Math.floor(Math.random()*player.length);
  let card=player.splice(i,1)[0];
  cpu.push(card);
+ if(card==='J') showJoker();
  cpu = removePairs(cpu);
-
- document.getElementById('status').textContent = 'あなたのターン：上のカードを選んで引く';
  turn='player';
+ document.getElementById('status').textContent='あなたのターン：上のカードを選んで引く';
  draw();
  checkWin();
 }
@@ -122,8 +130,8 @@ function checkWin(){
 function init(){
  deal();
  draw();
- document.getElementById('status').textContent = 'あなたのターン：上のカードを選んで引く';
  turn='player';
+ document.getElementById('status').textContent='あなたのターン：上のカードを選んで引く';
 }
 
 init();
