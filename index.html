@@ -2,81 +2,115 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>ガチャゲーム</title>
+<title>テトリス風ゲーム</title>
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    background: linear-gradient(135deg, #1e3c72, #2a5298);
-    color: white;
-    margin: 0;
-    padding: 20px;
-  }
-
-  h1 {
-    margin-bottom: 20px;
-  }
-
-  .gacha-box {
-    margin-top: 40px;
-  }
-
-  button {
-    padding: 15px 30px;
-    font-size: 18px;
-    border: none;
-    border-radius: 10px;
-    background: gold;
-    cursor: pointer;
-  }
-
-  button:hover {
-    opacity: 0.8;
-  }
-
-  .result {
-    margin-top: 30px;
-    font-size: 24px;
-    min-height: 50px;
-  }
-
-  .card {
-    margin-top: 20px;
-    padding: 20px;
-    border-radius: 15px;
-    display: inline-block;
-    min-width: 200px;
-  }
-
-  .N { background: gray; }
-  .R { background: blue; }
-  .SR { background: purple; }
-  .SSR { background: orange; }
+body {
+  background: black;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+canvas {
+  background: #111;
+}
 </style>
 </head>
 <body>
-
-<h1>🎰 ガチャゲーム 🎰</h1>
-
-<div class="gacha-box">
-  <button onclick="drawGacha()">ガチャを引く！</button>
-</div>
-
-<div class="result" id="result"></div>
+<canvas id="game" width="240" height="400"></canvas>
 
 <script>
-const pool = [
-  { name: "スライム", rarity: "N", rate: 50 },
-  { name: "ゴブリン", rarity: "N", rate: 30 },
-  { name: "ナイト", rarity: "R", rate: 12 },
-  { name: "ウィザード", rarity: "R", rate: 5 },
-  { name: "ドラゴン", rarity: "SR", rate: 2.5 },
-  { name: "フェニックス", rarity: "SR", rate: 0.4 },
-  { name: "神龍", rarity: "SSR", rate: 0.1 }
-];
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-function drawGacha() {
-  const rand = Math.random() * 100;
-  let sum = 0;
+const COLS = 12;
+const ROWS = 20;
+const SIZE = 20;
 
+let board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+
+const piece = {
+  x: 5,
+  y: 0,
+  shape: [
+    [1,1,1],
+    [0,1,0]
+  ]
+};
+
+function drawCell(x, y, val) {
+  if(val) {
+    ctx.fillStyle = "cyan";
+    ctx.fillRect(x*SIZE, y*SIZE, SIZE-1, SIZE-1);
+  }
+}
+
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  for(let y=0;y<ROWS;y++) {
+    for(let x=0;x<COLS;x++) {
+      drawCell(x,y,board[y][x]);
+    }
+  }
+
+  piece.shape.forEach((row,dy)=>{
+    row.forEach((val,dx)=>{
+      if(val) drawCell(piece.x+dx, piece.y+dy, val);
+    });
+  });
+}
+
+function collide() {
+  return piece.shape.some((row,dy)=>{
+    return row.some((val,dx)=>{
+      if(!val) return false;
+      let x = piece.x + dx;
+      let y = piece.y + dy;
+      return x<0 || x>=COLS || y>=ROWS || (y>=0 && board[y][x]);
+    });
+  });
+}
+
+function merge() {
+  piece.shape.forEach((row,dy)=>{
+    row.forEach((val,dx)=>{
+      if(val) board[piece.y+dy][piece.x+dx]=1;
+    });
+  });
+}
+
+function drop() {
+  piece.y++;
+  if(collide()) {
+    piece.y--;
+    merge();
+    reset();
+  }
+}
+
+function reset() {
+  piece.x = 5;
+  piece.y = 0;
+}
+
+function update() {
+  drop();
+  draw();
+}
+
+setInterval(update, 500);
+
+document.addEventListener("keydown", e=>{
+  if(e.key === "ArrowLeft") piece.x--;
+  if(e.key === "ArrowRight") piece.x++;
+  if(e.key === "ArrowDown") drop();
+  if(collide()) {
+    if(e.key === "ArrowLeft") piece.x++;
+    if(e.key === "ArrowRight") piece.x--;
+  }
+});
+</script>
+</body>
 </html>
+
