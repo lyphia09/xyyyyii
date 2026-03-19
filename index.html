@@ -103,8 +103,11 @@ function draw(){
  const gap = 20;
 
  // 中央配置計算
- const cpuStart = (cpuDiv.clientWidth - ((cpu.length-1)*gap + cardWidth)) / 2;
- const playerStart = (playerDiv.clientWidth - ((player.length-1)*gap + cardWidth)) / 2;
+ const cpuWidth = cpuDiv.offsetWidth || 600;
+ const playerWidth = playerDiv.offsetWidth || 600;
+
+ const cpuStart = (cpuWidth - ((cpu.length-1)*gap + cardWidth)) / 2;
+ const playerStart = (playerWidth - ((player.length-1)*gap + cardWidth)) / 2;
 
  cpu.forEach((_,i)=>{
   const d=document.createElement('div');
