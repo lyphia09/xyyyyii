@@ -2,200 +2,131 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>TTRS</title>
+<title>ババ抜き（選択式）</title>
 <style>
-body {
-  margin: 0;
-  background: #0b0f1a;
-  color: #e6e6e6;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
-.wrapper {
-  display: grid;
-  grid-template-columns: 240px 160px;
-  gap: 16px;
-}
-canvas { background: #111; border-radius: 8px; }
-.panel { background: #111; padding: 12px; border-radius: 8px; }
-.h { font-size: 14px; opacity: .8; }
-.v { font-size: 22px; margin-bottom: 8px; }
-.small { font-size: 12px; opacity: .7; }
-button { width: 100%; padding: 10px; border-radius: 8px; border: none; cursor: pointer; }
+body{font-family:sans-serif;text-align:center;background:#0b5;color:white}
+.hand{margin:10px}
+.card{display:inline-block;padding:10px 15px;margin:5px;border-radius:8px;background:white;color:black;cursor:pointer}
+.back{background:#333;color:#333}
 </style>
 </head>
 <body>
-<div class="wrapper">
-  <canvas id="game" width="240" height="400"></canvas>
-  <div class="panel">
-    <div class="h">SCORE</div>
-    <div class="v" id="score">0</div>
-    <div class="h">LINES</div>
-    <div class="v" id="lines">0</div>
-    <div class="h">LEVEL</div>
-    <div class="v" id="level">1</div>
-    <button onclick="restart()">リスタート</button>
-    <div class="small">← → 移動 / ↑ 回転 / ↓ ソフトドロップ / スペース ハードドロップ</div>
-  </div>
+<h1>ババ抜き</h1>
+<p id="status">あなたのターン：上のカードを選んで引く</p>
+
+<div>
+<h3>CPUの手札（ここをクリック）</h3>
+<div id="cpu" class="hand"></div>
+</div>
+
+<div>
+<h3>あなたの手札</h3>
+<div id="player" class="hand"></div>
 </div>
 
 <script>
-const COLS = 12;
-const ROWS = 20;
-const SIZE = 20;
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+let player=[], cpu=[], turn='player';
 
-let board, piece, next, score, lines, level, dropInterval, lastTime;
-
-const SHAPES = {
-  I: [[1,1,1,1]],
-  J: [[1,0,0],[1,1,1]],
-  L: [[0,0,1],[1,1,1]],
-  O: [[1,1],[1,1]],
-  S: [[0,1,1],[1,1,0]],
-  T: [[0,1,0],[1,1,1]],
-  Z: [[1,1,0],[0,1,1]]
-};
-
-const COLORS = {
-  I: '#00e5ff', J: '#2979ff', L: '#ff9100', O: '#ffd600',
-  S: '#00e676', T: '#d500f9', Z: '#ff1744'
-};
-
-function newBoard(){ return Array.from({length: ROWS},()=>Array(COLS).fill(0)); }
-
-function randomPiece(){
-  const keys = Object.keys(SHAPES);
-  const type = keys[(Math.random()*keys.length)|0];
-  return { x: 4, y: 0, shape: SHAPES[type], type };
+function createDeck(){
+ let deck=[];
+ for(let i=1;i<=13;i++) deck.push(i,i);
+ deck.push('J');
+ return shuffle(deck);
 }
 
-function rotate(matrix){
-  return matrix[0].map((_,i)=>matrix.map(row=>row[i]).reverse());
+function shuffle(arr){ return arr.sort(()=>Math.random()-0.5); }
+
+function deal(){
+ let deck=createDeck();
+ player=[]; cpu=[];
+ deck.forEach((c,i)=> i%2?cpu.push(c):player.push(c));
+ player = removePairs(player);
+ cpu = removePairs(cpu);
 }
 
-function collide(p){
-  return p.shape.some((row,dy)=>
-    row.some((val,dx)=>{
-      if(!val) return false;
-      const x=p.x+dx, y=p.y+dy;
-      return x<0||x>=COLS||y>=ROWS||(y>=0 && board[y][x]);
-    })
-  );
-}
-
-function merge(){
-  piece.shape.forEach((row,dy)=>{
-    row.forEach((val,dx)=>{
-      if(val) board[piece.y+dy][piece.x+dx] = piece.type;
+function removePairs(hand){
+ let count={};
+ hand.forEach(c=>{ if(c!=='J') count[c]=(count[c]||0)+1; });
+ for(let k in count){
+  while(count[k]>=2){
+    let removed=0;
+    hand = hand.filter(c=>{
+      if(c==k && removed<2){ removed++; return false; }
+      return true;
     });
-  });
-}
-
-function clearLines(){
-  let cleared = 0;
-  outer: for(let y=ROWS-1;y>=0;y--){
-    for(let x=0;x<COLS;x++) if(!board[y][x]) continue outer;
-    const row = board.splice(y,1)[0].fill(0);
-    board.unshift(row);
-    y++;
-    cleared++;
+    count[k]-=2;
   }
-  if(cleared){
-    lines += cleared;
-    score += [0,100,300,500,800][cleared] * level;
-    level = 1 + Math.floor(lines/10);
-    dropInterval = Math.max(80, 500 - (level-1)*40);
-    updateUI();
-  }
-}
-
-function hardDrop(){
-  while(!collide(piece)) piece.y++;
-  piece.y--; lock();
-}
-
-function lock(){
-  merge();
-  clearLines();
-  spawn();
-}
-
-function spawn(){
-  piece = next || randomPiece();
-  next = randomPiece();
-  piece.x = 4; piece.y = 0;
-  if(collide(piece)){
-    alert('ゲームオーバー');
-    restart();
-  }
-}
-
-function move(dx){
-  piece.x += dx;
-  if(collide(piece)) piece.x -= dx;
-}
-
-function softDrop(){
-  piece.y++;
-  if(collide(piece)){
-    piece.y--; lock();
-  }
-}
-
-function rotatePiece(){
-  const prev = piece.shape;
-  piece.shape = rotate(piece.shape);
-  if(collide(piece)) piece.shape = prev;
-}
-
-function drawCell(x,y,type){
-  if(!type) return;
-  ctx.fillStyle = COLORS[type];
-  ctx.fillRect(x*SIZE, y*SIZE, SIZE-1, SIZE-1);
+ }
+ return hand;
 }
 
 function draw(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++) drawCell(x,y,board[y][x]);
-  piece.shape.forEach((row,dy)=>row.forEach((v,dx)=>{ if(v) drawCell(piece.x+dx, piece.y+dy, piece.type); }));
+ const cpuDiv = document.getElementById('cpu');
+ const playerDiv = document.getElementById('player');
+ cpuDiv.innerHTML=''; playerDiv.innerHTML='';
+
+ cpu.forEach((_,i)=>{
+  let div=document.createElement('div');
+  div.className='card back';
+  div.textContent='?';
+  if(turn==='player'){
+    div.onclick=()=>playerTurn(i);
+    div.style.cursor='pointer';
+  } else {
+    div.style.cursor='default';
+  }
+  cpuDiv.appendChild(div);
+ });
+
+ player.forEach(c=>{
+  let div=document.createElement('div');
+  div.className='card';
+  div.textContent=c;
+  playerDiv.appendChild(div);
+ });
 }
 
-function update(time=0){
-  if(time - lastTime > dropInterval){ softDrop(); lastTime = time; }
-  draw();
-  requestAnimationFrame(update);
+function playerTurn(index){
+ if(turn!=='player') return;
+ if(cpu.length===0) return;
+
+ let card = cpu.splice(index,1)[0];
+ player.push(card);
+ player = removePairs(player);
+
+ document.getElementById('status').textContent = 'CPUのターン';
+ turn='cpu';
+ draw();
+ checkWin();
+ setTimeout(cpuTurn,800);
 }
 
-function updateUI(){
-  document.getElementById('score').textContent = score;
-  document.getElementById('lines').textContent = lines;
-  document.getElementById('level').textContent = level;
+function cpuTurn(){
+ if(player.length===0) return;
+ let i=Math.floor(Math.random()*player.length);
+ let card=player.splice(i,1)[0];
+ cpu.push(card);
+ cpu = removePairs(cpu);
+
+ document.getElementById('status').textContent = 'あなたのターン：上のカードを選んで引く';
+ turn='player';
+ draw();
+ checkWin();
 }
 
-function restart(){
-  board = newBoard();
-  piece = randomPiece();
-  next = randomPiece();
-  score = 0; lines = 0; level = 1;
-  dropInterval = 500; lastTime = 0;
-  updateUI();
+function checkWin(){
+ if(player.length===0){ alert('あなたの勝ち！'); init(); }
+ if(cpu.length===0){ alert('CPUの勝ち！'); init(); }
 }
 
-document.addEventListener('keydown', e=>{
-  if(e.key==='ArrowLeft') move(-1);
-  else if(e.key==='ArrowRight') move(1);
-  else if(e.key==='ArrowDown') softDrop();
-  else if(e.key==='ArrowUp') rotatePiece();
-  else if(e.code==='Space') hardDrop();
-});
+function init(){
+ deal();
+ draw();
+ document.getElementById('status').textContent = 'あなたのターン：上のカードを選んで引く';
+ turn='player';
+}
 
-restart();
-update();
+init();
 </script>
 </body>
 </html>
