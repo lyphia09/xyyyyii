@@ -2,18 +2,54 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>BBNK</title>
+<title>ババ抜き（リアル演出強化）</title>
 <style>
-body{font-family:sans-serif;text-align:center;background:#0b5;color:white}
-.hand{margin:10px}
-.card{display:inline-block;padding:10px 15px;margin:5px;border-radius:8px;background:white;color:black;cursor:pointer}
-.back{background:#333;color:#333}
+body{
+  font-family:sans-serif;
+  text-align:center;
+  background:#888;
+  color:white;
+}
+.hand{
+  margin:20px;
+  position:relative;
+  height:100px;
+}
+.card{
+  position:absolute;
+  width:60px;
+  height:80px;
+  border-radius:10px;
+  background:white;
+  color:black;
+  font-weight:bold;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:2px 2px 5px rgba(0,0,0,0.5);
+  transform-origin:bottom center;
+  transition:transform 0.3s;
+}
+.card:hover{ transform:translateY(-10px) scale(1.1); }
+.back{
+  background:linear-gradient(45deg,#444,#222);
+  color:#222;
+}
+.red{color:red}
 #jokerEffect{
  position:fixed;
  top:50%;left:50%;
  transform:translate(-50%,-50%);
  font-size:80px;
  display:none;
+}
+.flip{
+  animation:flip 0.4s;
+}
+@keyframes flip{
+  0%{transform:rotateY(0deg)}
+  50%{transform:rotateY(90deg)}
+  100%{transform:rotateY(0deg)}
 }
 </style>
 </head>
@@ -24,7 +60,7 @@ body{font-family:sans-serif;text-align:center;background:#0b5;color:white}
 <div id="jokerEffect">👿</div>
 
 <div>
-<h3>CPUの手札（クリック）</h3>
+<h3>CPUの手札</h3>
 <div id="cpu" class="hand"></div>
 </div>
 
@@ -35,11 +71,14 @@ body{font-family:sans-serif;text-align:center;background:#0b5;color:white}
 
 <script>
 let player=[], cpu=[], turn='player';
+const marks = ['♠','♥','♦','♣'];
 
 function createDeck(){
  let deck=[];
- for(let i=1;i<=13;i++) deck.push(i,i);
- deck.push('J');
+ for(let i=1;i<=13;i++){
+  for(let m of marks){ deck.push({num:i,mark:m}); }
+ }
+ deck.push({num:'J',mark:'👿'});
  return shuffle(deck);
 }
 
@@ -55,12 +94,12 @@ function deal(){
 
 function removePairs(hand){
  let count={};
- hand.forEach(c=>{ if(c!=='J') count[c]=(count[c]||0)+1; });
+ hand.forEach(c=>{ if(c.num!=='J') count[c.num]=(count[c.num]||0)+1; });
  for(let k in count){
   while(count[k]>=2){
     let removed=0;
     hand = hand.filter(c=>{
-      if(c==k && removed<2){ removed++; return false; }
+      if(c.num==k && removed<2){ removed++; return false; }
       return true;
     });
     count[k]-=2;
@@ -75,38 +114,52 @@ function showJoker(){
  setTimeout(()=>{ el.style.display='none'; },1000);
 }
 
+function formatCard(c){
+ if(c.num==='J') return '👿';
+ let n=c.num;
+ if(n===1)n='A'; if(n===11)n='J'; if(n===12)n='Q'; if(n===13)n='K';
+ return n+c.mark;
+}
+
 function draw(){
- const cpuDiv = document.getElementById('cpu');
- const playerDiv = document.getElementById('player');
+ const cpuDiv=document.getElementById('cpu');
+ const playerDiv=document.getElementById('player');
  cpuDiv.innerHTML=''; playerDiv.innerHTML='';
 
  cpu.forEach((_,i)=>{
   let div=document.createElement('div');
   div.className='card back';
-  div.textContent='?';
-  if(turn==='player') div.onclick=()=>playerTurn(i);
+  div.style.left = (i*20)+"px";
+  div.style.transform = `rotate(${i*5-10}deg)`;
+  if(turn==='player') div.onclick=()=>playerTurn(i,div);
   cpuDiv.appendChild(div);
  });
 
- player.forEach(c=>{
+ player.forEach((c,i)=>{
   let div=document.createElement('div');
   div.className='card';
-  div.textContent=c;
+  if(c.mark==='♥'||c.mark==='♦') div.classList.add('red');
+  div.textContent=formatCard(c);
+  div.style.left = (i*20)+"px";
+  div.style.transform = `rotate(${i*5-10}deg)`;
   playerDiv.appendChild(div);
  });
 }
 
-function playerTurn(index){
+function playerTurn(index, el){
  if(turn!=='player') return;
- let card = cpu.splice(index,1)[0];
- player.push(card);
- if(card==='J') showJoker();
- player = removePairs(player);
- turn='cpu';
- document.getElementById('status').textContent='CPUのターン';
- draw();
- checkWin();
- setTimeout(cpuTurn,800);
+ el.classList.add('flip');
+ setTimeout(()=>{
+  let card = cpu.splice(index,1)[0];
+  player.push(card);
+  if(card.num==='J') showJoker();
+  player = removePairs(player);
+  turn='cpu';
+  document.getElementById('status').textContent='CPUのターン';
+  draw();
+  checkWin();
+  setTimeout(cpuTurn,800);
+ },200);
 }
 
 function cpuTurn(){
@@ -114,7 +167,7 @@ function cpuTurn(){
  let i=Math.floor(Math.random()*player.length);
  let card=player.splice(i,1)[0];
  cpu.push(card);
- if(card==='J') showJoker();
+ if(card.num==='J') showJoker();
  cpu = removePairs(cpu);
  turn='player';
  document.getElementById('status').textContent='あなたのターン：上のカードを選んで引く';
@@ -128,13 +181,11 @@ function checkWin(){
 }
 
 function init(){
- deal();
- draw();
- turn='player';
- document.getElementById('status').textContent='あなたのターン：上のカードを選んで引く';
+ deal(); draw(); turn='player';
 }
 
 init();
 </script>
 </body>
 </html>
+
